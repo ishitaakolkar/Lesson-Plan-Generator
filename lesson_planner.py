@@ -45,6 +45,7 @@ GRADES_MAPPING = {
 
 # --- HELPER FUNCTIONS ---
 def generate_lesson_plan(board, grade, subject, topic, objective):
+    # UPDATED PROMPT to be less strict on the AI's heading format
     prompt = f"""
     As an expert curriculum designer for the {board} board in India, create a 15-minute micro-lesson plan for {grade}, focusing on the subject of {subject}.
 
@@ -58,31 +59,26 @@ def generate_lesson_plan(board, grade, subject, topic, objective):
         response = model.generate_content(prompt, request_options={'timeout': 60})
         return response.text
     except Exception as e:
-        return f"An error occurred: {e}"
+        return f"An error occurred while generating the plan: {e}"
 
-# --- UPDATED: PDF & DOCX Generation Functions ---
 def create_pdf(text_content):
     pdf = FPDF()
     pdf.add_page()
-    # Add the Unicode font (assuming DejaVuSans.ttf is in the same directory)
     try:
         pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
         pdf.set_font('DejaVu', size=12)
     except RuntimeError:
-        # Fallback to Arial if font file is not found
         pdf.set_font("Arial", size=12)
         st.warning("Font 'DejaVuSans.ttf' not found. PDF will not render emojis correctly. Please download it as instructed.", icon="⚠️")
         
-    # Clean up the text for PDF
-    text_for_pdf = re.sub(r'### (.*?)\n', r'\1\n\n', text_content) # Make headings bold
-    text_for_pdf = text_for_pdf.replace('**', '') # Remove bold markdown
+    text_for_pdf = re.sub(r'### (.*?)\n', r'\1\n\n', text_content)
+    text_for_pdf = text_for_pdf.replace('**', '')
     
     pdf.multi_cell(0, 10, text_for_pdf)
     return pdf.output(dest='S').encode('latin-1')
 
 def create_docx(text_content):
     doc = Document()
-    # Clean up the text for DOCX
     text_for_docx = re.sub(r'### (.*?)\n', r'\1\n\n', text_content)
     text_for_docx = text_for_docx.replace('**', '')
     doc.add_paragraph(text_for_docx)
@@ -93,15 +89,10 @@ def create_docx(text_content):
 # --- STREAMLIT UI ---
 st.set_page_config(layout="wide", page_title="Smart Lesson Planner", page_icon="🧑‍🏫")
 
-# --- NEW: Custom CSS for visual appeal ---
 st.markdown("""
     <style>
-    .stDeployButton {
-        visibility: hidden;
-    }
-    .stExpander {
-        border-radius: 10px;
-    }
+    .stDeployButton { visibility: hidden; }
+    .stExpander { border-radius: 10px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -131,54 +122,55 @@ with st.container(border=True):
         else:
             st.warning("Please fill in all fields to generate a lesson plan.", icon="⚠️")
 
-# --- NEW: Redesigned Output Display ---
 if 'lesson_plan' in st.session_state and st.session_state.lesson_plan:
     st.markdown("---")
     st.subheader("3. Your AI-Generated Lesson Plan")
     plan_text = st.session_state.lesson_plan
     
-    if plan_text.startswith("An error occurred:"):
+    if plan_text.startswith("An error occurred"):
         st.error(plan_text)
     else:
-        try:
-            # Use regex to find content under each heading
-            intro_match = re.search(r'### 📝 Introduction\n(.*?)(?=\n###|$)', plan_text, re.S)
-            activity_match = re.search(r'### 🎯 Main Activity\n(.*?)(?=\n###|$)', plan_text, re.S)
-            conclusion_match = re.search(r'### ✨ Conclusion\n(.*?)(?=\n###|$)', plan_text, re.S)
+        # --- UPDATED & ROBUST PARSING LOGIC ---
+        # This new regex is flexible and handles optional text like (3 minutes)
+        intro_match = re.search(r'### 📝 Introduction.*?\n(.*?)(?=\n###|$)', plan_text, re.S)
+        activity_match = re.search(r'### 🎯 Main Activity.*?\n(.*?)(?=\n###|$)', plan_text, re.S)
+        conclusion_match = re.search(r'### ✨ Conclusion.*?\n(.*?)(?=\n###|$)', plan_text, re.S)
 
-            intro = intro_match.group(1).strip() if intro_match else "Not generated."
-            activity = activity_match.group(1).strip() if activity_match else "Not generated."
-            conclusion = conclusion_match.group(1).strip() if conclusion_match else "Not generated."
+        intro = intro_match.group(1).strip() if intro_match else "Could not parse Introduction."
+        activity = activity_match.group(1).strip() if activity_match else "Could not parse Main Activity."
+        conclusion = conclusion_match.group(1).strip() if conclusion_match else "Could not parse Conclusion."
 
-            m1, m2, m3 = st.columns(3)
-            m1.metric(label="Introduction", value="3 Mins")
-            m2.metric(label="Main Activity", value="9 Mins")
-            m3.metric(label="Conclusion", value="3 Mins")
-            
-            with st.expander("📝 **Introduction**", expanded=True):
-                st.markdown(intro)
-            
-            with st.expander("🎯 **Main Activity**", expanded=True):
-                st.markdown(activity)
+        m1, m2, m3 = st.columns(3)
+        m1.metric(label="Introduction", value="~3 Mins")
+        m2.metric(label="Main Activity", value="~9 Mins")
+        m3.metric(label="Conclusion", value="~3 Mins")
+        
+        with st.expander("📝 **Introduction**", expanded=True):
+            st.markdown(intro)
+        
+        with st.expander("🎯 **Main Activity**", expanded=True):
+            st.markdown(activity)
 
-            with st.expander("✨ **Conclusion**", expanded=True):
-                st.markdown(conclusion)
+        with st.expander("✨ **Conclusion**", expanded=True):
+            st.markdown(conclusion)
 
-            st.markdown("---")
-            
-            st.write("Copy the full lesson plan text below:")
-            st.code(plan_text, language='markdown')
+        st.markdown("---")
+        
+        # This section is now outside the main display logic to prevent errors from cascading
+        st.write("Copy the full lesson plan text below:")
+        st.code(plan_text, language='markdown')
 
-            st.write("Or download the file:")
-            dl_col1, dl_col2 = st.columns(2)
-            with dl_col1:
+        st.write("Or download the file:")
+        dl_col1, dl_col2 = st.columns(2)
+        with dl_col1:
+            try:
                 pdf_data = create_pdf(plan_text)
                 st.download_button(label="⬇️ Download as PDF", data=pdf_data, file_name=f"{topic}_lesson_plan.pdf", mime="application/pdf", use_container_width=True)
-            with dl_col2:
+            except Exception as e:
+                st.error(f"Failed to create PDF: {e}")
+        with dl_col2:
+            try:
                 docx_data = create_docx(plan_text)
                 st.download_button(label="⬇️ Download as Word (DOCX)", data=docx_data, file_name=f"{topic}_lesson_plan.docx", mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document", use_container_width=True)
-
-        except Exception as e:
-            st.error(f"An error occurred while displaying the plan: {e}")
-            st.write("Raw AI Output:")
-            st.code(plan_text)
+            except Exception as e:
+                st.error(f"Failed to create DOCX: {e}")
