@@ -22,18 +22,22 @@ except Exception as e:
 
 
 # --- HELPER FUNCTION ---
-def generate_lesson_plan(grade, topic, objective):
+# <-- UPDATED function to accept new parameters
+def generate_lesson_plan(board, grade, subject, topic, objective):
     """
     Generates a lesson plan by calling the Gemini API with a specific prompt.
     """
-    # This is our "System Instruction" prompt
+    # <-- UPDATED prompt with more context for the AI
     prompt = f"""
-    As an expert curriculum designer, create a concise and engaging 15-minute micro-lesson plan.
+    As an expert curriculum designer specializing in the Indian education system, create a concise and engaging 15-minute micro-lesson plan.
 
+    **Educational Board:** {board}
     **Grade Level:** {grade}
+    **Subject:** {subject}
     **Lesson Topic:** {topic}
     **Learning Objective:** By the end of this 15-minute lesson, students should be able to {objective}.
 
+    Please ensure the content, examples, and complexity are appropriate for the specified board and grade level in India.
     Structure the output in Markdown format with the following three sections:
     1.  **Introduction (3 minutes):** A hook to grab student attention and introduce the objective.
     2.  **Main Activity (9 minutes):** A simple, interactive activity for the students.
@@ -47,21 +51,37 @@ def generate_lesson_plan(grade, topic, objective):
 
 
 # --- STREAMLIT UI ---
-st.set_page_config(page_title="Micro Lesson Plan Generator", page_icon="📝")
+st.set_page_config(page_title="Indian Lesson Plan Generator", page_icon="📝")
 
-st.title("📝 Micro Lesson Plan Generator")
-st.write("Fill in the details below to generate a 15-minute lesson plan outline.")
+# <-- UPDATED Title
+st.title("📝 Indian Curriculum Lesson Plan Generator")
+st.write("Fill in the details below to generate a 15-minute lesson plan outline tailored for Indian schools.")
 
-# Input fields for the user
-grade = st.text_input("Grade Level", placeholder="e.g., '4th Grade'")
-topic = st.text_input("Lesson Topic", placeholder="e.g., 'The Solar System'")
-objective = st.text_area("Learning Objective", placeholder="e.g., 'name the planets in order from the Sun'")
+# --- NEW: Dropdown Menus for Structured Input ---
+boards = ['CBSE', 'GSEB']
+grades = ['Nursery', 'LKG', 'UKG', '1st Grade', '2nd Grade', '3rd Grade', '4th Grade', '5th Grade', '6th Grade', '7th Grade', '8th Grade', '9th Grade', '10th Grade', '11th Grade', '12th Grade']
+subjects = [
+    'English', 'Mathematics', 'Science', 'Social Studies', 'Hindi', 'Gujarati',
+    'Computer Science', 'Physics', 'Chemistry', 'Biology', 'History', 'Geography',
+    'Economics', 'Accountancy', 'Business Studies'
+]
+
+board = st.selectbox("Select Educational Board", boards)
+grade = st.selectbox("Select Grade", grades)
+subject = st.selectbox("Select Subject", subjects)
+
+
+# <-- Text inputs for remaining details ---
+topic = st.text_input("Lesson Topic", placeholder="e.g., 'The Mughal Empire', 'Photosynthesis'")
+objective = st.text_area("Learning Objective", placeholder="e.g., 'list the major Mughal emperors in chronological order'")
 
 # Button to trigger the generation
 if st.button("✨ Generate Lesson Plan"):
-    if grade and topic and objective:
+    # <-- UPDATED to check all new fields
+    if board and grade and subject and topic and objective:
         with st.spinner("🤖 AI is creating your lesson plan..."):
-            lesson_plan = generate_lesson_plan(grade, topic, objective)
+            # <-- UPDATED to pass all new inputs to the function
+            lesson_plan = generate_lesson_plan(board, grade, subject, topic, objective)
             st.markdown("---")
             st.subheader("Your AI-Generated Lesson Plan")
             st.markdown(lesson_plan)
