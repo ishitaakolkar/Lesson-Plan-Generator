@@ -21,31 +21,37 @@ except Exception as e:
     st.stop()
 
 # --- Data for Dynamic Dropdowns ---
-SUBJECTS_DATA = {
+LESSON_DATA = {
     'CBSE': {
-        'Primary (1-5)': ['English', 'Hindi', 'Mathematics', 'Environmental Science (EVS)'],
-        'Middle (6-8)': ['English', 'Hindi', 'Mathematics', 'Science', 'Social Science', 'Sanskrit'],
-        'Secondary (9-10)': ['English', 'Hindi', 'Mathematics', 'Science', 'Social Science'],
-        'Senior Secondary (11-12)': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'Accountancy', 'Business Studies', 'Economics', 'English', 'History', 'Political Science', 'Geography']
+        'Primary (1-5)': {
+            'Mathematics': ['Shapes and Space', 'Numbers from One to Nine', 'Addition and Subtraction', 'Measurement', 'Time', 'Money'],
+            'English': ['Reading Comprehension: The Little Bird', 'Grammar: Nouns', 'Vocabulary: Animal Names', 'Writing: My Family'],
+            'Environmental Science (EVS)': ['Our Body', 'Plants Around Us', 'Animals Around Us', 'Water', 'Our Festivals']
+        },
+        'Middle (6-8)': {
+            'Science': ['Food: Where Does It Come From?', 'Components of Food', 'Fibre to Fabric', 'Sorting Materials Into Groups', 'Separation of Substances'],
+            'Social Science': ['What, Where, How and When?', 'On The Trail of the Earliest People', 'From Gathering to Growing Food', 'In the Earliest Cities']
+        }
     },
     'GSEB': {
-        'Primary (1-5)': ['Gujarati', 'English', 'Mathematics', 'Environmental Science (Paryavaran)'],
-        'Middle (6-8)': ['Gujarati', 'English', 'Mathematics', 'Science (Vigyan)', 'Social Science (Samajik Vigyan)', 'Sanskrit'],
-        'Secondary (9-10)': ['Gujarati', 'English', 'Mathematics', 'Science', 'Social Science'],
-        'Senior Secondary (11-12)': ['Physics', 'Chemistry', 'Mathematics', 'Biology', 'Computer Science', 'Accountancy', 'Business Studies', 'Economics', 'English', 'Gujarati', 'History', 'Political Science', 'Geography']
+        'Primary (1-5)': {
+            'Mathematics': ['આકારો અને જગ્યા (Shapes and Space)', 'એક થી નવ સુધીની સંખ્યાઓ (Numbers 1-9)', 'સરવાળા અને બાદબાકી (Addition/Subtraction)'],
+            'Gujarati': ['વાર્તા: લાલચુ કૂતરો (Story: The Greedy Dog)', 'વ્યાકરણ: સંજ્ઞા (Grammar: Nouns)', 'કવિતા: વરસાદ (Poem: Rain)']
+        },
+        'Middle (6-8)': {
+            'Science (Vigyan)': ['ખોરાક: ક્યાંથી મળે છે? (Food: Where does it come from?)', 'આહારના ઘટકો (Components of Food)', 'પદાર્થોનું અલગીકરણ (Separation of Substances)'],
+            'Social Science (Samajik Vigyan)': ['ચાલો, ઇતિહાસ જાણીએ (Let’s Know History)', 'આપણી આસપાસ શું? (What is Around Us?)', 'સરકાર (The Government)']
+        }
     }
 }
 GRADES_MAPPING = {
     'Nursery': 'Primary (1-5)', 'LKG': 'Primary (1-5)', 'UKG': 'Primary (1-5)',
     '1st Grade': 'Primary (1-5)', '2nd Grade': 'Primary (1-5)', '3rd Grade': 'Primary (1-5)', '4th Grade': 'Primary (1-5)', '5th Grade': 'Primary (1-5)',
-    '6th Grade': 'Middle (6-8)', '7th Grade': 'Middle (6-8)', '8th Grade': 'Middle (6-8)',
-    '9th Grade': 'Secondary (9-10)', '10th Grade': 'Secondary (9-10)',
-    '11th Grade': 'Senior Secondary (11-12)', '12th Grade': 'Senior Secondary (11-12)'
+    '6th Grade': 'Middle (6-8)', '7th Grade': 'Middle (6-8)', '8th Grade': 'Middle (6-8)'
 }
 
 # --- HELPER FUNCTIONS ---
 def generate_lesson_plan(board, grade, subject, topic, objective):
-    # UPDATED PROMPT to be less strict on the AI's heading format
     prompt = f"""
     As an expert curriculum designer for the {board} board in India, create a 15-minute micro-lesson plan for {grade}, focusing on the subject of {subject}.
 
@@ -59,29 +65,21 @@ def generate_lesson_plan(board, grade, subject, topic, objective):
         response = model.generate_content(prompt, request_options={'timeout': 60})
         return response.text
     except Exception as e:
-        return f"An error occurred while generating the plan: {e}"
+        return f"An error occurred: {e}"
 
 def create_pdf(text_content):
     pdf = FPDF()
     pdf.add_page()
-    try:
-        pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)
-        pdf.set_font('DejaVu', size=12)
-    except RuntimeError:
-        pdf.set_font("Arial", size=12)
-        st.warning("Font 'DejaVuSans.ttf' not found. PDF will not render emojis correctly. Please download it as instructed.", icon="⚠️")
-        
-    text_for_pdf = re.sub(r'### (.*?)\n', r'\1\n\n', text_content)
-    text_for_pdf = text_for_pdf.replace('**', '')
-    
-    pdf.multi_cell(0, 10, text_for_pdf)
-    return pdf.output(dest='S').encode('latin-1')
+    pdf.set_font("Arial", size=12)
+    cleaned_text = text_content.encode('latin-1', 'ignore').decode('latin-1')
+    pdf.multi_cell(0, 10, cleaned_text)
+    # --- FIXED LINE: Removed the unnecessary .encode() method ---
+    return pdf.output(dest='S')
 
 def create_docx(text_content):
     doc = Document()
-    text_for_docx = re.sub(r'### (.*?)\n', r'\1\n\n', text_content)
-    text_for_docx = text_for_docx.replace('**', '')
-    doc.add_paragraph(text_for_docx)
+    cleaned_text = text_content.encode('ascii', 'ignore').decode('ascii')
+    doc.add_paragraph(cleaned_text)
     bio = BytesIO()
     doc.save(bio)
     return bio.getvalue()
@@ -102,17 +100,29 @@ with st.container(border=True):
     st.subheader("1. Select Your Class Details")
     col1, col2, col3 = st.columns(3)
     with col1:
-        board = st.selectbox("Educational Board", list(SUBJECTS_DATA.keys()))
+        board = st.selectbox("Educational Board", list(LESSON_DATA.keys()))
     with col2:
         grade = st.selectbox("Grade", list(GRADES_MAPPING.keys()))
     with col3:
         grade_category = GRADES_MAPPING[grade]
-        subject_list = SUBJECTS_DATA[board][grade_category]
-        subject = st.selectbox("Subject", subject_list)
+        available_subjects = list(LESSON_DATA[board].get(grade_category, {}).keys())
+        if available_subjects:
+            subject = st.selectbox("Subject", available_subjects)
+        else:
+            subject = None
+            st.warning("No subjects defined for this grade level yet.")
 
     st.subheader("2. Define Your Lesson")
-    topic = st.text_input("Lesson Topic", placeholder="e.g., 'The Water Cycle'")
-    objective = st.text_area("Learning Objective", placeholder="e.g., 'describe the stages of evaporation and condensation'")
+    if subject:
+        available_topics = LESSON_DATA[board][grade_category].get(subject, [])
+        if available_topics:
+            topic = st.selectbox("Lesson Topic / Chapter", available_topics)
+        else:
+            topic = st.text_input("Lesson Topic", placeholder="No pre-defined topics. Please enter one.")
+    else:
+        topic = ""
+
+    objective = st.text_area("Learning Objective for this Topic", placeholder="e.g., 'describe the stages of evaporation and condensation'")
 
     if st.button("🚀 Generate Lesson Plan", type="primary", use_container_width=True):
         if all([board, grade, subject, topic, objective]):
@@ -122,6 +132,7 @@ with st.container(border=True):
         else:
             st.warning("Please fill in all fields to generate a lesson plan.", icon="⚠️")
 
+# --- Output Display Section ---
 if 'lesson_plan' in st.session_state and st.session_state.lesson_plan:
     st.markdown("---")
     st.subheader("3. Your AI-Generated Lesson Plan")
@@ -130,8 +141,6 @@ if 'lesson_plan' in st.session_state and st.session_state.lesson_plan:
     if plan_text.startswith("An error occurred"):
         st.error(plan_text)
     else:
-        # --- UPDATED & ROBUST PARSING LOGIC ---
-        # This new regex is flexible and handles optional text like (3 minutes)
         intro_match = re.search(r'### 📝 Introduction.*?\n(.*?)(?=\n###|$)', plan_text, re.S)
         activity_match = re.search(r'### 🎯 Main Activity.*?\n(.*?)(?=\n###|$)', plan_text, re.S)
         conclusion_match = re.search(r'### ✨ Conclusion.*?\n(.*?)(?=\n###|$)', plan_text, re.S)
@@ -156,7 +165,6 @@ if 'lesson_plan' in st.session_state and st.session_state.lesson_plan:
 
         st.markdown("---")
         
-        # This section is now outside the main display logic to prevent errors from cascading
         st.write("Copy the full lesson plan text below:")
         st.code(plan_text, language='markdown')
 
