@@ -1,14 +1,10 @@
-# 🧑‍🏫 Smart Lesson Planner
-
-[![License: MIT](https://img.shields.io/badge/License-MIT-orange.svg)](https://opensource.org/licenses/MIT)
+# PLANIT: Smart Lesson Planner
 
 An intelligent web application designed to empower educators by automating the creation of high-quality, customized micro-lesson plans. This project leverages the power of Large Language Models to reduce administrative workload and support teachers in delivering quality education.
 
-![App Screenshot](https://i.imgur.com/rL4Y9qM.png)
-
 ---
 
-## ✨ Overview
+## Overview
 
 The Smart Lesson Planner is a user-friendly tool built with Python and Streamlit that generates 15-minute lesson plans in seconds. It is specifically tailored for the Indian education system, providing dynamic, curriculum-aware inputs that guide the AI to produce relevant and practical content for the classroom.
 
