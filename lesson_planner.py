@@ -73,8 +73,8 @@ def create_pdf(text_content):
     pdf.set_font("Arial", size=12)
     cleaned_text = text_content.encode('latin-1', 'ignore').decode('latin-1')
     pdf.multi_cell(0, 10, cleaned_text)
-    # --- FIXED LINE: Removed the unnecessary .encode() method ---
-    return pdf.output(dest='S')
+    # --- DEFINITIVE FIX: Explicitly convert the output to a standard 'bytes' object ---
+    return bytes(pdf.output())
 
 def create_docx(text_content):
     doc = Document()
@@ -104,8 +104,8 @@ with st.container(border=True):
     with col2:
         grade = st.selectbox("Grade", list(GRADES_MAPPING.keys()))
     with col3:
-        grade_category = GRADES_MAPPING[grade]
-        available_subjects = list(LESSON_DATA[board].get(grade_category, {}).keys())
+        grade_category = GRADES_MAPPING.get(grade, 'Primary (1-5)') # Default gracefully
+        available_subjects = list(LESSON_DATA.get(board, {}).get(grade_category, {}).keys())
         if available_subjects:
             subject = st.selectbox("Subject", available_subjects)
         else:
@@ -114,7 +114,7 @@ with st.container(border=True):
 
     st.subheader("2. Define Your Lesson")
     if subject:
-        available_topics = LESSON_DATA[board][grade_category].get(subject, [])
+        available_topics = LESSON_DATA.get(board, {}).get(grade_category, {}).get(subject, [])
         if available_topics:
             topic = st.selectbox("Lesson Topic / Chapter", available_topics)
         else:
