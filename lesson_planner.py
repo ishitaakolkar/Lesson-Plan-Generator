@@ -15,7 +15,7 @@ try:
         st.stop()
     genai.configure(api_key=api_key)
     # Initialize the Generative Model
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash-latest')
 except Exception as e:
     st.error(f"Error configuring the API: {e}")
     st.stop()
