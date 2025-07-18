@@ -1,5 +1,6 @@
 import streamlit as st
 import os
+import base64  # NEW: Import for encoding the image
 from dotenv import load_dotenv
 import google.generativeai as genai
 import re
@@ -51,6 +52,12 @@ GRADES_MAPPING = {
 }
 
 # --- HELPER FUNCTIONS ---
+@st.cache_data
+def get_img_as_base64(file):
+    with open(file, "rb") as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
 def generate_lesson_plan(board, grade, subject, topic, objective):
     prompt = f"""
     As an expert curriculum designer for the {board} board in India, create a 15-minute micro-lesson plan for {grade}, focusing on the subject of {subject}.
@@ -73,7 +80,6 @@ def create_pdf(text_content):
     pdf.set_font("Arial", size=12)
     cleaned_text = text_content.encode('latin-1', 'ignore').decode('latin-1')
     pdf.multi_cell(0, 10, cleaned_text)
-    # --- DEFINITIVE FIX: Explicitly convert the output to a standard 'bytes' object ---
     return bytes(pdf.output())
 
 def create_docx(text_content):
@@ -87,14 +93,28 @@ def create_docx(text_content):
 # --- STREAMLIT UI ---
 st.set_page_config(layout="wide", page_title="Smart Lesson Planner", page_icon="🧑‍🏫")
 
-st.markdown("""
+# --- NEW: Set Background Image ---
+try:
+    img = get_img_as_base64("background.jpg")
+    page_bg_img = f"""
     <style>
-    .stDeployButton { visibility: hidden; }
-    .stExpander { border-radius: 10px; }
+    [data-testid="stAppViewContainer"] > .main {{
+    background-image: url("data:image/jpeg;base64,{img}");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+    }}
+    [data-testid="stHeader"] {{
+    background: rgba(0,0,0,0);
+    }}
     </style>
-""", unsafe_allow_html=True)
+    """
+    st.markdown(page_bg_img, unsafe_allow_html=True)
+except FileNotFoundError:
+    st.warning("background.jpg not found. Please add it to the root folder.", icon="⚠️")
 
-st.title("Smart Lesson Planner")
+st.title("🧑‍🏫 Smart Lesson Planner for Indian Schools")
 
 with st.container(border=True):
     st.subheader("1. Select Your Class Details")
