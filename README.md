@@ -2,7 +2,12 @@
 ### **_Internship Project with AI Agent for IBM AI Internship_**
 
 An intelligent web application designed to empower educators by automating the creation of high-quality, customized micro-lesson plans. This project leverages the power of Large Language Models to reduce administrative workload and support teachers in delivering quality education.
+---
+## Preview
+<img width="1902" height="1079" alt="image" src="https://github.com/user-attachments/assets/d803143d-ed92-4c69-9045-b99748ae40f6" />
 
+---
+### Live Demo (Hugging Face): https://huggingface.co/spaces/ishitaakolkar/PlanIT
 ---
 
 ## Overview
