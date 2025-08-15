@@ -1,7 +1,6 @@
-import streamlit as st
 import os
-import base64  # NEW: Import for encoding the image
-from dotenv import load_dotenv
+import streamlit as st
+import base64  # For encoding the image
 import google.generativeai as genai
 import re
 from fpdf import FPDF
@@ -9,19 +8,20 @@ from docx import Document
 from io import BytesIO
 
 # --- CONFIGURATION & API SETUP ---
-load_dotenv()
+# No load_dotenv() because on Hugging Face Spaces, use environment variables / secrets
+api_key = os.getenv("GOOGLE_API_KEY")
+if not api_key:
+    st.error("Error: GOOGLE_API_KEY not found in environment variables.")
+    st.stop()
+
 try:
-    api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key:
-        st.error("Error: GOOGLE_API_KEY not found in .env file.")
-        st.stop()
     genai.configure(api_key=api_key)
     model = genai.GenerativeModel('gemini-1.5-flash-latest')
 except Exception as e:
     st.error(f"Error configuring the API: {e}")
     st.stop()
 
-# --- Data for Dynamic Dropdowns ---
+# --- DATA ---
 LESSON_DATA = {
     'CBSE': {
         'Primary (1-5)': {
@@ -60,14 +60,14 @@ def get_img_as_base64(file):
 
 def generate_lesson_plan(board, grade, subject, topic, objective):
     prompt = f"""
-    As an expert curriculum designer for the {board} board in India, create a 15-minute micro-lesson plan for {grade}, focusing on the subject of {subject}.
+As an expert curriculum designer for the {board} board in India, create a 15-minute micro-lesson plan for {grade}, focusing on the subject of {subject}.
+**Topic:** {topic}
+**Objective:** By the end of this lesson, students should be able to {objective}.
+Generate the output in simple Markdown. Use these exact headings for each section: '### 📝 Introduction', '### 🎯 Main Activity', and '### ✨ Conclusion'.
+Under each heading, provide a clear, concise, and actionable plan.
 
-    **Topic:** {topic}
-    **Objective:** By the end of this lesson, students should be able to {objective}.
-
-    Generate the output in simple Markdown. Use these exact headings for each section: '### 📝 Introduction', '### 🎯 Main Activity', and '### ✨ Conclusion'.
-    Under each heading, provide a clear, concise, and actionable plan.
-    """
+Also, generate a short 5-question multiple-choice quiz (with answers) related to the lesson at the end under '### 📝 Quiz'.
+"""
     try:
         response = model.generate_content(prompt, request_options={'timeout': 60})
         return response.text
@@ -80,7 +80,7 @@ def create_pdf(text_content):
     pdf.set_font("Arial", size=12)
     cleaned_text = text_content.encode('latin-1', 'ignore').decode('latin-1')
     pdf.multi_cell(0, 10, cleaned_text)
-    return bytes(pdf.output())
+    return bytes(pdf.output(dest='S').encode('latin-1'))
 
 def create_docx(text_content):
     doc = Document()
@@ -90,10 +90,18 @@ def create_docx(text_content):
     doc.save(bio)
     return bio.getvalue()
 
+def translate_text(text, target_lang='hi'):
+    """
+    Dummy placeholder: Integration with Google Translate or DeepL API
+    You should call the translation API here and return translated text.
+    """
+    # For now, just return original text
+    return text
+
 # --- STREAMLIT UI ---
 st.set_page_config(layout="wide", page_title="Smart Lesson Planner", page_icon="🧑‍🏫")
 
-# --- NEW: Set Background Image ---
+# Background image
 try:
     img = get_img_as_base64("background.jpg")
     page_bg_img = f"""
@@ -116,7 +124,7 @@ except FileNotFoundError:
 
 st.title("Planit: Smart Lesson Planner")
 
-with st.container(border=True):
+with st.container():
     st.subheader("1. Select Your Class Details")
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -124,7 +132,7 @@ with st.container(border=True):
     with col2:
         grade = st.selectbox("Grade", list(GRADES_MAPPING.keys()))
     with col3:
-        grade_category = GRADES_MAPPING.get(grade, 'Primary (1-5)') # Default gracefully
+        grade_category = GRADES_MAPPING.get(grade, 'Primary (1-5)')
         available_subjects = list(LESSON_DATA.get(board, {}).get(grade_category, {}).keys())
         if available_subjects:
             subject = st.selectbox("Subject", available_subjects)
@@ -141,50 +149,54 @@ with st.container(border=True):
             topic = st.text_input("Lesson Topic", placeholder="No pre-defined topics. Please enter one.")
     else:
         topic = ""
-
     objective = st.text_area("Learning Objective for this Topic", placeholder="e.g., 'describe the stages of evaporation and condensation'")
+
+    translate = st.checkbox("Translate lesson plan to Hindi", value=False)
 
     if st.button("🚀 Generate Lesson Plan", type="primary", use_container_width=True):
         if all([board, grade, subject, topic, objective]):
             with st.spinner("🧠 The AI is thinking... this may take a moment."):
                 lesson_plan = generate_lesson_plan(board, grade, subject, topic, objective)
+                if translate:
+                    lesson_plan = translate_text(lesson_plan, target_lang='hi')
                 st.session_state.lesson_plan = lesson_plan
         else:
             st.warning("Please fill in all fields to generate a lesson plan.", icon="⚠️")
 
-# --- Output Display Section ---
 if 'lesson_plan' in st.session_state and st.session_state.lesson_plan:
     st.markdown("---")
     st.subheader("3. Your AI-Generated Lesson Plan")
     plan_text = st.session_state.lesson_plan
-    
+
     if plan_text.startswith("An error occurred"):
         st.error(plan_text)
     else:
         intro_match = re.search(r'### 📝 Introduction.*?\n(.*?)(?=\n###|$)', plan_text, re.S)
         activity_match = re.search(r'### 🎯 Main Activity.*?\n(.*?)(?=\n###|$)', plan_text, re.S)
         conclusion_match = re.search(r'### ✨ Conclusion.*?\n(.*?)(?=\n###|$)', plan_text, re.S)
+        quiz_match = re.search(r'### 📝 Quiz.*?\n(.*)', plan_text, re.S)
 
         intro = intro_match.group(1).strip() if intro_match else "Could not parse Introduction."
         activity = activity_match.group(1).strip() if activity_match else "Could not parse Main Activity."
         conclusion = conclusion_match.group(1).strip() if conclusion_match else "Could not parse Conclusion."
+        quiz = quiz_match.group(1).strip() if quiz_match else "No quiz generated."
 
-        m1, m2, m3 = st.columns(3)
+        m1, m2, m3, m4 = st.columns(4)
         m1.metric(label="Introduction", value="~3 Mins")
         m2.metric(label="Main Activity", value="~9 Mins")
         m3.metric(label="Conclusion", value="~3 Mins")
-        
+        m4.metric(label="Quiz", value="5 Questions")
+
         with st.expander("📝 **Introduction**", expanded=True):
             st.markdown(intro)
-        
         with st.expander("🎯 **Main Activity**", expanded=True):
             st.markdown(activity)
-
         with st.expander("✨ **Conclusion**", expanded=True):
             st.markdown(conclusion)
+        with st.expander("📝 **Quiz**", expanded=True):
+            st.markdown(quiz)
 
         st.markdown("---")
-        
         st.write("Copy the full lesson plan text below:")
         st.code(plan_text, language='markdown')
 
