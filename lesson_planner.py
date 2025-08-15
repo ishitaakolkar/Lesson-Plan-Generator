@@ -235,7 +235,7 @@ try:
 except FileNotFoundError:
     st.warning("background.jpg not found. Please add it to the root folder.", icon="⚠️")
 
-st.title("Planit: Smart Lesson Planner")
+st.title("CurAIte: Smart Lesson Planner")
 
 with st.container():
     st.subheader("1. Select Your Class Details")
