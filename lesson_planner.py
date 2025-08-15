@@ -6,6 +6,10 @@ import re
 from fpdf import FPDF
 from docx import Document
 from io import BytesIO
+from dotenv import load_dotenv
+
+
+load_dotenv()
 
 # --- CONFIGURATION & API SETUP ---
 api_key = os.getenv("GOOGLE_API_KEY")
