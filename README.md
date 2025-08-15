@@ -1,4 +1,4 @@
-# PLANIT: Smart Lesson Planner
+# CurAIte: Smart Lesson Planner
 ### **_Internship Project with AI Agent for IBM AI Internship_**
 
 An intelligent web application designed to empower educators by automating the creation of high-quality, customized micro-lesson plans. This project leverages the power of Large Language Models to reduce administrative workload and support teachers in delivering quality education.
